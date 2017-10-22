@@ -13,7 +13,7 @@ var InvalidTypeSize error = fmt.Errorf("the given byte sequence introduces a lon
 // some constants for reading/writing var types
 const (
 	checkMask byte = 128
-	mask byte = 127
+	mask      byte = 127
 )
 
 // this method reads a VarInt from the given io.Reader
@@ -118,6 +118,61 @@ func WriteVarLong(writer io.Writer, value int64) (err error) {
 		if value == 0 {
 			break
 		}
+	}
+	return nil
+}
+
+// some constants for reading/writing strings
+const (
+	maximumBytes int = 32767*4 + 3
+)
+
+// the error which is thrown if the prepended length is not valid (lower than 1 or higher than maximumBytes)
+type ErrInvalidStringLength struct {
+	SentLength int
+}
+
+func (stringLengthExceedError ErrInvalidStringLength) Error() string {
+	return fmt.Sprintf("the prepended length (%v) is not valid (maximum: %v)", stringLengthExceedError.SentLength, maximumBytes)
+}
+
+// this method reads a String from the given io.Reader
+// returns the read String or an error if something went wrong.
+func ReadString(reader io.Reader) (string, error) {
+	length, err := ReadVarInt(reader)
+	if err != nil {
+		return "", err
+	}
+	if length > maximumBytes || length < 1 {
+		return "", ErrInvalidStringLength{length}
+	}
+	buffer := make([]byte, length)
+	for i := 0; i < length; i++ {
+		bytesRead, err := reader.Read(buffer)
+		if bytesRead == 0 {
+			// the VarInt has not ended yet but there is no more byte available
+			return "", io.ErrUnexpectedEOF
+		} else if err != nil {
+			// an unknown error occurred while reading the next byte
+			return "", err
+		}
+	}
+	return string(buffer), nil
+}
+
+// this method writes a String to the given io.Writer
+// returns an error if something went wrong.
+func WriteString(writer io.Writer, value string) (err error) {
+	length := len(value)
+	if length > maximumBytes || length < 1 {
+		return ErrInvalidStringLength{length}
+	}
+	if err := WriteVarInt(writer, length); err != nil {
+		return err
+	}
+	stringBytes := []byte(value)
+	if _, err := writer.Write(stringBytes); err != nil {
+		return err
 	}
 	return nil
 }
