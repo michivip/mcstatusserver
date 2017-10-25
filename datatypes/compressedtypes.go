@@ -200,3 +200,29 @@ func WriteUint16(writer io.Writer, value uint16) (err error) {
 	}
 	return nil
 }
+
+// this method reads a long (signed 64-bit integer) from the given io.Reader
+// returns the read long or an error if something went wrong.
+func ReadInt64(reader io.Reader) (int64, error) {
+	uint64Array := make([]byte, 8)
+	bytesRead, err := reader.Read(uint64Array)
+	if bytesRead == 0 {
+		// the unsigned short has not ended yet but there is no more byte available
+		return -1, io.ErrUnexpectedEOF
+	} else if err != nil {
+		// an unknown error occurred while reading the next byte
+		return -1, err
+	}
+	return int64(uint64Array), nil
+}
+
+// this method writes a long (signed 64-bit integer) to the given io.Writer
+// returns an error if something went wrong.
+func WriteInt64(writer io.Writer, value int64) (err error) {
+	if _, err := writer.Write([]byte(value)); err != nil {
+		return err
+	}
+	return nil
+}
+
+
