@@ -3,7 +3,6 @@ package datatypes
 import (
 	"io"
 	"fmt"
-	"encoding/binary"
 )
 
 // this file contains utility methods for reading and writing the compressed data types as described here: http://wiki.vg/Protocol#Data_types
