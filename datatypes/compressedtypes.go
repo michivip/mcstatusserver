@@ -176,3 +176,27 @@ func WriteString(writer io.Writer, value string) (err error) {
 	}
 	return nil
 }
+
+// this method reads an unsigned short (unsigned 16-bit integer) from the given io.Reader
+// returns the read unsigned short or an error if something went wrong.
+func ReadUint16(reader io.Reader) (uint16, error) {
+	uint16Array := make([]byte, 2)
+	bytesRead, err := reader.Read(uint16Array)
+	if bytesRead == 0 {
+		// the unsigned short has not ended yet but there is no more byte available
+		return -1, io.ErrUnexpectedEOF
+	} else if err != nil {
+		// an unknown error occurred while reading the next byte
+		return -1, err
+	}
+	return uint16(uint16Array), nil
+}
+
+// this method writes an unsigned short (unsigned 16-bit integer) to the given io.Writer
+// returns an error if something went wrong.
+func WriteUint16(writer io.Writer, value uint16) (err error) {
+	if _, err := writer.Write([]byte(value)); err != nil {
+		return err
+	}
+	return nil
+}
