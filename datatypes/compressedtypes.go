@@ -18,7 +18,7 @@ const (
 )
 
 // this method reads a VarInt from the given io.Reader
-// returns the read VarInt or an error if something went wrong.
+// returns the read VarInt or an error if something went wrong
 func ReadVarInt(reader io.Reader) (int, error) {
 	var numRead int = 0
 	var result int = 0
@@ -51,7 +51,7 @@ func ReadVarInt(reader io.Reader) (int, error) {
 }
 
 // this method writes a VarInt to the given io.Writer
-// returns an error if something went wrong.
+// returns an error if something went wrong
 func WriteVarInt(writer io.Writer, value int) (err error) {
 	for {
 		var temp byte = byte(value) & mask
@@ -71,7 +71,7 @@ func WriteVarInt(writer io.Writer, value int) (err error) {
 }
 
 // this method reads a VarLong from the given io.Reader
-// returns the read VarLong or an error if something went wrong.
+// returns the read VarLong or an error if something went wrong
 func ReadVarLong(reader io.Reader) (int64, error) {
 	var numRead int = 0
 	var result int64 = 0
@@ -104,7 +104,7 @@ func ReadVarLong(reader io.Reader) (int64, error) {
 }
 
 // this method writes a VarLong to the given io.Writer
-// returns an error if something went wrong.
+// returns an error if something went wrong
 func WriteVarLong(writer io.Writer, value int64) (err error) {
 	for {
 		var temp byte = byte(value) & mask
@@ -138,7 +138,7 @@ func (stringLengthExceedError ErrInvalidStringLength) Error() string {
 }
 
 // this method reads a String from the given io.Reader
-// returns the read String or an error if something went wrong.
+// returns the read String or an error if something went wrong
 func ReadString(reader io.Reader) (string, error) {
 	length, err := ReadVarInt(reader)
 	if err != nil {
@@ -162,7 +162,7 @@ func ReadString(reader io.Reader) (string, error) {
 }
 
 // this method writes a String to the given io.Writer
-// returns an error if something went wrong.
+// returns an error if something went wrong
 func WriteString(writer io.Writer, value string) (err error) {
 	length := len(value)
 	if length > maximumBytes || length < 1 {
@@ -179,27 +179,27 @@ func WriteString(writer io.Writer, value string) (err error) {
 }
 
 // this method reads an unsigned short (unsigned 16-bit integer) from the given io.Reader
-// returns the read unsigned short or an error if something went wrong.
-func ReadUint16(reader io.Reader) (value uint16, err error) {
+// returns the read unsigned short or an error if something went wrong
+func ReadUnsignedShort(reader io.Reader) (value uint16, err error) {
 	err = binary.Read(reader, binary.BigEndian, &value)
 	return
 }
 
 // this method writes an unsigned short (unsigned 16-bit integer) to the given io.Writer
-// returns an error if something went wrong.
-func WriteUint16(writer io.Writer, value uint16) (err error) {
+// returns an error if something went wrong
+func WriteUnsignedShort(writer io.Writer, value uint16) (err error) {
 	return binary.Write(writer, binary.BigEndian, value)
 }
 
 // this method reads a long (signed 64-bit integer) from the given io.Reader
-// returns the read long or an error if something went wrong.
-func ReadInt64(reader io.Reader) (value int64, err error) {
+// returns the read long or an error if something went wrong
+func ReadLong(reader io.Reader) (value int64, err error) {
 	err = binary.Read(reader, binary.BigEndian, &value)
 	return
 }
 
 // this method writes a long (signed 64-bit integer) to the given io.Writer
-// returns an error if something went wrong.
-func WriteInt64(writer io.Writer, value int64) (error) {
+// returns an error if something went wrong
+func WriteLong(writer io.Writer, value int64) (error) {
 	return binary.Write(writer, binary.BigEndian, value)
 }
