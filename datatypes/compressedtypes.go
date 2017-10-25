@@ -148,15 +148,13 @@ func ReadString(reader io.Reader) (string, error) {
 		return "", ErrInvalidStringLength{length}
 	}
 	buffer := make([]byte, length)
-	for i := 0; i < length; i++ {
-		bytesRead, err := reader.Read(buffer)
-		if bytesRead == 0 {
-			// the VarInt has not ended yet but there is no more byte available
-			return "", io.ErrUnexpectedEOF
-		} else if err != nil {
-			// an unknown error occurred while reading the next byte
-			return "", err
-		}
+	bytesRead, err := reader.Read(buffer)
+	if bytesRead == 0 {
+		// the VarInt has not ended yet but there is no more byte available
+		return "", io.ErrUnexpectedEOF
+	} else if err != nil {
+		// an unknown error occurred while reading the next byte
+		return "", err
 	}
 	return string(buffer), nil
 }
