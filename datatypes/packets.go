@@ -16,23 +16,23 @@ type Packet struct {
 func WritePacket(writer io.Writer, packet Packet) (err error, totalBytesWritten int) {
 	totalBuffer := bytes.NewBuffer(make([]byte, 0))
 	if err, idBytesWritten := WriteVarInt(totalBuffer, packet.Id); err != nil {
-		return
+		return err, totalBytesWritten
 	} else {
 		totalBytesWritten += idBytesWritten
 	}
 	if bytesWritten, err := packet.Content.WriteTo(totalBuffer); err != nil {
-		return
+		return err, totalBytesWritten
 	} else if bytesWritten == 0 {
 		return io.ErrUnexpectedEOF, totalBytesWritten
 	}
 	prependedLength := len(totalBuffer.Bytes())
 	if err, prependedLengthBytesWritten := WriteVarInt(writer, prependedLength); err != nil {
-		return
+		return err, totalBytesWritten
 	} else {
 		totalBytesWritten += prependedLengthBytesWritten
 	}
 	if bytesWritten, err := writer.Write(totalBuffer.Bytes()); err != nil {
-		return
+		return err, totalBytesWritten
 	} else if bytesWritten == 0 {
 		return io.ErrUnexpectedEOF, totalBytesWritten
 	}
