@@ -148,15 +148,13 @@ func ReadString(reader io.Reader) (string, error) {
 		return "", ErrInvalidStringLength{length}
 	}
 	buffer := make([]byte, length)
-	for i := 0; i < length; i++ {
-		bytesRead, err := reader.Read(buffer)
-		if bytesRead == 0 {
-			// the VarInt has not ended yet but there is no more byte available
-			return "", io.ErrUnexpectedEOF
-		} else if err != nil {
-			// an unknown error occurred while reading the next byte
-			return "", err
-		}
+	bytesRead, err := reader.Read(buffer)
+	if bytesRead == 0 {
+		// the VarInt has not ended yet but there is no more byte available
+		return "", io.ErrUnexpectedEOF
+	} else if err != nil {
+		// an unknown error occurred while reading the next byte
+		return "", err
 	}
 	return string(buffer), nil
 }
@@ -188,7 +186,7 @@ func ReadUnsignedShort(reader io.Reader) (value uint16, err error) {
 // this method writes an unsigned short (unsigned 16-bit integer) to the given io.Writer
 // returns an error if something went wrong
 func WriteUnsignedShort(writer io.Writer, value uint16) (err error) {
-	return binary.Write(writer, binary.BigEndian, value)
+	return binary.Write(writer, binary.BigEndian, &value)
 }
 
 // this method reads a long (signed 64-bit integer) from the given io.Reader
@@ -201,5 +199,5 @@ func ReadLong(reader io.Reader) (value int64, err error) {
 // this method writes a long (signed 64-bit integer) to the given io.Writer
 // returns an error if something went wrong
 func WriteLong(writer io.Writer, value int64) (error) {
-	return binary.Write(writer, binary.BigEndian, value)
+	return binary.Write(writer, binary.BigEndian, &value)
 }
