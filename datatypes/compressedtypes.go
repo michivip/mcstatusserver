@@ -18,42 +18,43 @@ const (
 )
 
 // this method reads a VarInt from the given io.Reader
-// returns the read VarInt or an error if something went wrong
-func ReadVarInt(reader io.Reader) (int, error) {
-	var numRead int = 0
-	var result int = 0
+// returns the read VarInt and the amount of bytes read or an error if something went wrong
+func ReadVarInt(reader io.Reader) (value int, err error, totalBytesRead int) {
 	var read byte
 	singleByte := make([]byte, 1)
 	for {
 		bytesRead, err := reader.Read(singleByte)
 		if bytesRead == 0 {
 			// the VarInt has not ended yet but there is no more byte available
-			return -1, io.ErrUnexpectedEOF
+			err = io.ErrUnexpectedEOF
+			return value, err, totalBytesRead
 		} else if err != nil {
 			// an unknown error occurred while reading the next byte
-			return -1, err
+			return value, err, totalBytesRead
 		}
 		read = singleByte[0]
-		var value byte = read & mask
-		var intValue int32 = int32(value)
-		var shiftedValue int = int(intValue << uint(7*numRead))
-		result |= shiftedValue
-		numRead++
-		if numRead > 5 {
+		var tempValue byte = read & mask
+		var intValue int32 = int32(tempValue)
+		var shiftedValue int = int(intValue << uint(7*totalBytesRead))
+		value |= shiftedValue
+		totalBytesRead++
+		if totalBytesRead > 5 {
 			// the type is bigger than allowed per definition
-			return -1, InvalidTypeSize
+			err = InvalidTypeSize
+			return value, err, totalBytesRead
 		}
 		if (read & checkMask) == 0 {
 			break
 		}
 	}
-	return result, nil
+	return value, err, totalBytesRead
 }
 
 // this method writes a VarInt to the given io.Writer
-// returns an error if something went wrong
-func WriteVarInt(writer io.Writer, value int) (err error) {
+// returns the amount of bytes written or an error if something went wrong
+func WriteVarInt(writer io.Writer, value int) (err error, totalBytesWritten int) {
 	for {
+		totalBytesWritten++
 		var temp byte = byte(value) & mask
 		value = int(uint32(value) >> 7)
 		if value != 0 {
@@ -61,52 +62,53 @@ func WriteVarInt(writer io.Writer, value int) (err error) {
 		}
 		_, err := writer.Write([]byte{temp})
 		if err != nil {
-			return err
+			return err, totalBytesWritten
 		}
 		if value == 0 {
 			break
 		}
 	}
-	return
+	return err, totalBytesWritten
 }
 
 // this method reads a VarLong from the given io.Reader
-// returns the read VarLong or an error if something went wrong
-func ReadVarLong(reader io.Reader) (int64, error) {
-	var numRead int = 0
-	var result int64 = 0
+// returns the read VarLong and the amount of bytes read or an error if something went wrong
+func ReadVarLong(reader io.Reader) (value int64, err error, totalBytesRead int) {
 	var read byte
 	singleByte := make([]byte, 1)
 	for {
 		bytesRead, err := reader.Read(singleByte)
 		if bytesRead == 0 {
 			// the VarInt has not ended yet but there is no more byte available
-			return -1, io.ErrUnexpectedEOF
+			err = io.ErrUnexpectedEOF
+			return value, err, totalBytesRead
 		} else if err != nil {
 			// an unknown error occurred while reading the next byte
-			return -1, err
+			return value, err, totalBytesRead
 		}
 		read = singleByte[0]
-		var value byte = read & mask
-		var intValue int64 = int64(value)
-		var shiftedValue int64 = int64(intValue << uint(7*numRead))
-		result |= shiftedValue
-		numRead++
-		if numRead > 10 {
+		var tempValue byte = read & mask
+		var intValue int64 = int64(tempValue)
+		var shiftedValue int64 = int64(intValue << uint(7*totalBytesRead))
+		value |= shiftedValue
+		totalBytesRead++
+		if totalBytesRead > 10 {
 			// the type is bigger than allowed per definition
-			return -1, InvalidTypeSize
+			err = InvalidTypeSize
+			return value, err, totalBytesRead
 		}
 		if (read & checkMask) == 0 {
 			break
 		}
 	}
-	return result, nil
+	return value, err, totalBytesRead
 }
 
 // this method writes a VarLong to the given io.Writer
-// returns an error if something went wrong
-func WriteVarLong(writer io.Writer, value int64) (err error) {
+// returns the amount of bytes written or an error if something went wrong
+func WriteVarLong(writer io.Writer, value int64) (err error, totalBytesWritten int) {
 	for {
+		totalBytesWritten++
 		var temp byte = byte(value) & mask
 		value = int64(uint64(value) >> 7)
 		if value != 0 {
@@ -114,13 +116,13 @@ func WriteVarLong(writer io.Writer, value int64) (err error) {
 		}
 		_, err := writer.Write([]byte{temp})
 		if err != nil {
-			return err
+			return err, totalBytesWritten
 		}
 		if value == 0 {
 			break
 		}
 	}
-	return nil
+	return err, totalBytesWritten
 }
 
 // some constants for reading/writing strings
@@ -138,42 +140,50 @@ func (stringLengthExceedError ErrInvalidStringLength) Error() string {
 }
 
 // this method reads a String from the given io.Reader
-// returns the read String or an error if something went wrong
-func ReadString(reader io.Reader) (string, error) {
-	length, err := ReadVarInt(reader)
+// returns the read String and the amount of bytes read or an error if something went wrong
+func ReadString(reader io.Reader) (value string, err error, totalBytesRead int) {
+	length, err, prependedLengthByteAmount := ReadVarInt(reader)
 	if err != nil {
-		return "", err
+		return value, err, totalBytesRead
 	}
+	totalBytesRead += prependedLengthByteAmount + length
 	if length > maximumBytes || length < 1 {
-		return "", ErrInvalidStringLength{length}
+		err = ErrInvalidStringLength{length}
+		return value, err, totalBytesRead
 	}
 	buffer := make([]byte, length)
 	bytesRead, err := reader.Read(buffer)
 	if bytesRead == 0 {
 		// the VarInt has not ended yet but there is no more byte available
-		return "", io.ErrUnexpectedEOF
+		err = io.ErrUnexpectedEOF
+		return value, err, totalBytesRead
 	} else if err != nil {
 		// an unknown error occurred while reading the next byte
-		return "", err
+		return value, err, totalBytesRead
 	}
-	return string(buffer), nil
+	value = string(buffer)
+	return value, err, totalBytesRead
 }
 
 // this method writes a String to the given io.Writer
-// returns an error if something went wrong
-func WriteString(writer io.Writer, value string) (err error) {
+// returns the amount of bytes written or an error if something went wrong
+func WriteString(writer io.Writer, value string) (err error, totalBytesWritten int) {
 	length := len(value)
 	if length > maximumBytes || length < 1 {
-		return ErrInvalidStringLength{length}
+		err = ErrInvalidStringLength{length}
+		return err, totalBytesWritten
 	}
-	if err := WriteVarInt(writer, length); err != nil {
-		return err
+	if err, prependedLengthByteAmount := WriteVarInt(writer, length); err != nil {
+		return err, totalBytesWritten
+	} else {
+		totalBytesWritten += prependedLengthByteAmount
 	}
 	stringBytes := []byte(value)
+	totalBytesWritten += len(stringBytes)
 	if _, err := writer.Write(stringBytes); err != nil {
-		return err
+		return err, totalBytesWritten
 	}
-	return nil
+	return err, totalBytesWritten
 }
 
 // this method reads an unsigned short (unsigned 16-bit integer) from the given io.Reader
