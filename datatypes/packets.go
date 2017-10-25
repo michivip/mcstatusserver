@@ -5,20 +5,20 @@ import (
 	"io"
 )
 
-type PacketId int
-
-func (packetId PacketId) Abs() int {
-	return int(packetId)
+// Basic class to represent sent/received packets with their id and content
+type Packet struct {
+	Id      int
+	Content bytes.Buffer
 }
 
 // this method writes a Packet to the given io.Writer
 // returns an error if something went wrong
-func WritePacket(writer io.Writer, packetId PacketId, data bytes.Buffer) (err error) {
+func WritePacket(writer io.Writer, packet Packet) (err error) {
 	totalBuffer := bytes.NewBuffer(make([]byte, 0))
-	if err := WriteVarInt(totalBuffer, packetId.Abs()); err != nil {
+	if err := WriteVarInt(totalBuffer, packet.Id); err != nil {
 		return
 	}
-	if bytesWritten, err := data.WriteTo(totalBuffer); err != nil {
+	if bytesWritten, err := packet.Content.WriteTo(totalBuffer); err != nil {
 		return
 	} else if bytesWritten == 0 {
 		return io.ErrUnexpectedEOF
