@@ -26,7 +26,7 @@ func ReadVarInt(reader io.Reader) (value int, err error, totalBytesRead int) {
 		if err != nil {
 			// an unknown error occurred while reading the next byte
 			return value, err, totalBytesRead
-		} else if bytesRead == 0 {
+		} else if bytesRead < len(singleByte) {
 			// the VarInt has not ended yet but there is no more byte available
 			err = io.ErrUnexpectedEOF
 			return value, err, totalBytesRead
@@ -59,9 +59,12 @@ func WriteVarInt(writer io.Writer, value int) (err error, totalBytesWritten int)
 		if value != 0 {
 			temp |= checkMask
 		}
-		_, err := writer.Write([]byte{temp})
+		bytesToWrite := []byte{temp}
+		bytesWritten, err := writer.Write(bytesToWrite)
 		if err != nil {
 			return err, totalBytesWritten
+		} else if bytesWritten < len(bytesToWrite) {
+			return io.ErrUnexpectedEOF, totalBytesWritten
 		}
 		if value == 0 {
 			break
@@ -80,7 +83,7 @@ func ReadVarLong(reader io.Reader) (value int64, err error, totalBytesRead int) 
 		if err != nil {
 			// an unknown error occurred while reading the next byte
 			return value, err, totalBytesRead
-		} else if bytesRead == 0 {
+		} else if bytesRead < len(singleByte) {
 			// the VarInt has not ended yet but there is no more byte available
 			err = io.ErrUnexpectedEOF
 			return value, err, totalBytesRead
@@ -113,9 +116,12 @@ func WriteVarLong(writer io.Writer, value int64) (err error, totalBytesWritten i
 		if value != 0 {
 			temp |= checkMask
 		}
-		_, err := writer.Write([]byte{temp})
+		bytesToWrite := []byte{temp}
+		bytesWritten, err := writer.Write(bytesToWrite)
 		if err != nil {
 			return err, totalBytesWritten
+		} else if bytesWritten < len(bytesToWrite) {
+			return io.ErrUnexpectedEOF, totalBytesWritten
 		}
 		if value == 0 {
 			break
@@ -155,7 +161,7 @@ func ReadString(reader io.Reader) (value string, err error, totalBytesRead int) 
 	if err != nil {
 		// an unknown error occurred while reading the next byte
 		return value, err, totalBytesRead
-	} else if bytesRead == 0 {
+	} else if bytesRead < len(buffer) {
 		// the VarInt has not ended yet but there is no more byte available
 		err = io.ErrUnexpectedEOF
 		return value, err, totalBytesRead
@@ -179,8 +185,10 @@ func WriteString(writer io.Writer, value string) (err error, totalBytesWritten i
 	}
 	stringBytes := []byte(value)
 	totalBytesWritten += len(stringBytes)
-	if _, err := writer.Write(stringBytes); err != nil {
+	if bytesWritten, err := writer.Write(stringBytes); err != nil {
 		return err, totalBytesWritten
+	} else if bytesWritten < len(stringBytes) {
+		return io.ErrUnexpectedEOF, totalBytesWritten
 	}
 	return err, totalBytesWritten
 }
