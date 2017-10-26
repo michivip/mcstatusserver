@@ -23,12 +23,12 @@ func ReadVarInt(reader io.Reader) (value int, err error, totalBytesRead int) {
 	singleByte := make([]byte, 1)
 	for {
 		bytesRead, err := reader.Read(singleByte)
-		if bytesRead == 0 {
+		if err != nil {
+			// an unknown error occurred while reading the next byte
+			return value, err, totalBytesRead
+		} else if bytesRead == 0 {
 			// the VarInt has not ended yet but there is no more byte available
 			err = io.ErrUnexpectedEOF
-			return value, err, totalBytesRead
-		} else if err != nil {
-			// an unknown error occurred while reading the next byte
 			return value, err, totalBytesRead
 		}
 		read = singleByte[0]
@@ -77,12 +77,12 @@ func ReadVarLong(reader io.Reader) (value int64, err error, totalBytesRead int) 
 	singleByte := make([]byte, 1)
 	for {
 		bytesRead, err := reader.Read(singleByte)
-		if bytesRead == 0 {
+		if err != nil {
+			// an unknown error occurred while reading the next byte
+			return value, err, totalBytesRead
+		} else if bytesRead == 0 {
 			// the VarInt has not ended yet but there is no more byte available
 			err = io.ErrUnexpectedEOF
-			return value, err, totalBytesRead
-		} else if err != nil {
-			// an unknown error occurred while reading the next byte
 			return value, err, totalBytesRead
 		}
 		read = singleByte[0]
@@ -152,12 +152,12 @@ func ReadString(reader io.Reader) (value string, err error, totalBytesRead int) 
 	}
 	buffer := make([]byte, length)
 	bytesRead, err := reader.Read(buffer)
-	if bytesRead == 0 {
+	if err != nil {
+		// an unknown error occurred while reading the next byte
+		return value, err, totalBytesRead
+	} else if bytesRead == 0 {
 		// the VarInt has not ended yet but there is no more byte available
 		err = io.ErrUnexpectedEOF
-		return value, err, totalBytesRead
-	} else if err != nil {
-		// an unknown error occurred while reading the next byte
 		return value, err, totalBytesRead
 	}
 	value = string(buffer)
