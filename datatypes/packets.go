@@ -22,7 +22,7 @@ func WritePacket(writer io.Writer, packet Packet) (err error, totalBytesWritten 
 	}
 	if bytesWritten, err := packet.Content.WriteTo(totalBuffer); err != nil {
 		return err, totalBytesWritten
-	} else if bytesWritten == 0 {
+	} else if bytesWritten < int64(totalBuffer.Len()) {
 		return io.ErrUnexpectedEOF, totalBytesWritten
 	}
 	prependedLength := len(totalBuffer.Bytes())
@@ -33,7 +33,7 @@ func WritePacket(writer io.Writer, packet Packet) (err error, totalBytesWritten 
 	}
 	if bytesWritten, err := writer.Write(totalBuffer.Bytes()); err != nil {
 		return err, totalBytesWritten
-	} else if bytesWritten == 0 {
+	} else if bytesWritten < totalBuffer.Len() {
 		return io.ErrUnexpectedEOF, totalBytesWritten
 	}
 	return nil, totalBytesWritten
@@ -57,7 +57,7 @@ func ReadPacket(reader io.Reader) (packet Packet, err error, totalBytesRead int)
 	bytesRead, err := reader.Read(byteArray)
 	if err != nil {
 		return packet, err, totalBytesRead
-	} else if bytesRead == 0 {
+	} else if bytesRead < len(byteArray) {
 		err = io.ErrUnexpectedEOF
 		return packet, err, totalBytesRead
 	}
