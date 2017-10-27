@@ -55,12 +55,14 @@ func ReadPacket(reader io.Reader) (packet Packet, err error, totalBytesRead int)
 	}
 	totalBytesRead += length
 	byteArray := make([]byte, length-idBytesRead)
-	bytesRead, err := reader.Read(byteArray)
-	if err != nil {
-		return packet, err, totalBytesRead
-	} else if bytesRead < len(byteArray) {
-		err = io.ErrUnexpectedEOF
-		return packet, err, totalBytesRead
+	if len(byteArray) > 0 {
+		bytesRead, err := reader.Read(byteArray)
+		if err != nil {
+			return packet, err, totalBytesRead
+		} else if bytesRead < len(byteArray) {
+			err = io.ErrUnexpectedEOF
+			return packet, err, totalBytesRead
+		}
 	}
 	packet.Content = bytes.NewBuffer(byteArray)
 	return packet, err, totalBytesRead
