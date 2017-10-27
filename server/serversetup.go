@@ -55,6 +55,10 @@ func handleConnection(conn *net.TCPConn) {
 			switch packet.Id {
 			case 0:
 				handleHandshakePacket(conn, packet)
+				break
+			case 1:
+				handlePingPacket(conn, packet)
+				break
 			default:
 				log.Printf("Received packet with unknown ID: %v\n", packet.Id)
 			}
@@ -149,5 +153,20 @@ func handleHandshakePacket(conn *net.TCPConn, packet datatypes.Packet) {
 	default:
 		log.Printf("Cannot handle received Handshake packet with current state: %v", currentState)
 		return
+	}
+}
+
+func handlePingPacket(conn *net.TCPConn, packet datatypes.Packet) {
+	payload, err := datatypes.ReadLong(packet.Content)
+	if err != nil {
+		log.Printf("Received invalid ping payload data from %v: %v", conn.RemoteAddr(), err)
+		return
+	}
+	payloadBuffer := bytes.NewBuffer([]byte{})
+	if err = datatypes.WriteLong(payloadBuffer, payload); err != nil {
+		panic(err)
+	}
+	if err, _ = datatypes.WritePacket(conn, datatypes.Packet{Content: payloadBuffer, Id: 1}); err != nil {
+		panic(err)
 	}
 }
