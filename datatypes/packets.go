@@ -14,27 +14,28 @@ type Packet struct {
 // this method writes a Packet to the given io.Writer
 // returns an error if something went wrong
 func WritePacket(writer io.Writer, packet Packet) (err error, totalBytesWritten int) {
-	totalBuffer := bytes.NewBuffer(make([]byte, 0))
-	if err, idBytesWritten := WriteVarInt(totalBuffer, packet.Id); err != nil {
+	totalBuffer := bytes.NewBuffer([]byte{})
+	dataBuffer := bytes.NewBuffer([]byte{})
+	if err, _ := WriteVarInt(dataBuffer, packet.Id); err != nil {
 		return err, totalBytesWritten
-	} else {
-		totalBytesWritten += idBytesWritten
 	}
-	if bytesWritten, err := packet.Content.WriteTo(totalBuffer); err != nil {
+	if bytesWritten, err := dataBuffer.Write(packet.Content.Bytes()); err != nil {
 		return err, totalBytesWritten
-	} else if bytesWritten < int64(totalBuffer.Len()) {
+	} else if bytesWritten < packet.Content.Len() {
 		return io.ErrUnexpectedEOF, totalBytesWritten
 	}
-	prependedLength := len(totalBuffer.Bytes())
-	if err, prependedLengthBytesWritten := WriteVarInt(writer, prependedLength); err != nil {
+	if err, bytesWritten := WriteVarInt(totalBuffer, dataBuffer.Len()); err != nil {
 		return err, totalBytesWritten
 	} else {
-		totalBytesWritten += prependedLengthBytesWritten
+		totalBytesWritten += bytesWritten
 	}
+	totalBuffer.Write(dataBuffer.Bytes())
 	if bytesWritten, err := writer.Write(totalBuffer.Bytes()); err != nil {
 		return err, totalBytesWritten
-	} else if bytesWritten < totalBuffer.Len() {
+	} else if int(bytesWritten) < totalBuffer.Len() {
 		return io.ErrUnexpectedEOF, totalBytesWritten
+	} else {
+		totalBytesWritten += int(bytesWritten)
 	}
 	return nil, totalBytesWritten
 }
@@ -54,12 +55,14 @@ func ReadPacket(reader io.Reader) (packet Packet, err error, totalBytesRead int)
 	}
 	totalBytesRead += length
 	byteArray := make([]byte, length-idBytesRead)
-	bytesRead, err := reader.Read(byteArray)
-	if err != nil {
-		return packet, err, totalBytesRead
-	} else if bytesRead < len(byteArray) {
-		err = io.ErrUnexpectedEOF
-		return packet, err, totalBytesRead
+	if len(byteArray) > 0 {
+		bytesRead, err := reader.Read(byteArray)
+		if err != nil {
+			return packet, err, totalBytesRead
+		} else if bytesRead < len(byteArray) {
+			err = io.ErrUnexpectedEOF
+			return packet, err, totalBytesRead
+		}
 	}
 	packet.Content = bytes.NewBuffer(byteArray)
 	return packet, err, totalBytesRead
