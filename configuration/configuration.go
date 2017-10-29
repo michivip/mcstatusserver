@@ -1,6 +1,6 @@
 package configuration
 
-func getDefaultConfiguration() *ServerConfiguration {
+func GetDefaultConfiguration() *ServerConfiguration {
 	return &ServerConfiguration{
 		Address: "localhost:25565",
 		LoginAttempt: LoginAttemptValues{
@@ -26,16 +26,16 @@ func getDefaultConfiguration() *ServerConfiguration {
 		},
 		Motd: MessageOfTheDayValues{
 			Version: struct {
-				Name     string
-				Protocol int
+				Name     string `json:"name"`
+				Protocol int    `json:"protocol"`
 			}{Name: "mcstatusserver 420", Protocol: -1},
 			Players: struct {
-				Max    int
-				Online int
+				Max    int `json:"max"`
+				Online int `json:"online"`
 				Sample []struct {
-					Name string `json:"name"`;
+					Name string `json:"name"`
 					Id   string `json:"id"`
-				}
+				} `json:"sample,omitempty"`
 			}{Max: 1337, Online: 42, Sample: []struct {
 				Name string `json:"name"`
 				Id   string `json:"id"`
