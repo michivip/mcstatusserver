@@ -3,26 +3,42 @@ package configuration
 import (
 	"os"
 	"encoding/json"
+	"log"
 )
 
-func LoadConfiguration(fileName string) (error, *ServerConfiguration) {
+func LoadConfiguration(fileName string) (*ServerConfiguration, error) {
 	config := &ServerConfiguration{}
 	file, err := os.Open(fileName)
 	if err != nil {
 		if os.IsNotExist(err) {
+			log.Printf("Creating new configuration file: \"%v\"\n", fileName)
 			file, err = os.Create(fileName)
 			if err != nil {
-				return err, config
+				return config, err
 			}
-			if err = json.NewEncoder(file).Encode(getDefaultConfiguration()); err != nil {
-				return err, config
+			jsonEncoder := json.NewEncoder(file)
+			jsonEncoder.SetIndent("", "  ")
+			if err = jsonEncoder.Encode(getDefaultConfiguration()); err != nil {
+				return config, err
 			}
+			if err = file.Close(); err != nil {
+				return config, err
+			}
+			file, err = os.Open(fileName)
+			if err != nil {
+				return config, err
+			}
+			log.Println("New config file created! Please adjust your values and restart the application.")
+			os.Exit(0)
 		} else {
-			return err, config
+			return config, err
 		}
 	}
 	err = json.NewDecoder(file).Decode(config)
-	return err, config
+	if err = file.Close(); err != nil {
+		return config, err
+	}
+	return config, err
 }
 
 func getDefaultConfiguration() *ServerConfiguration {
@@ -66,6 +82,7 @@ func getDefaultConfiguration() *ServerConfiguration {
 				Id   string `json:"id"`
 			}{{Name: "Hi there, this is", Id: "7cd21442-4bd9-4b02-8539-1a2c4771ed3c"}, {Name: "my public server", Id: "c87a3f54-3802-4227-b72a-17ee3f10cbd9"}}},
 			Description: struct{ Text string `json:"text"` }{Text: "§cThis server runs with §aGo§c.\n§7https://github.com/michivip/mcstatusserver"},
+			FaviconPath: "icon.png",
 		},
 	}
 }
