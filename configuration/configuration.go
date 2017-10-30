@@ -1,6 +1,31 @@
 package configuration
 
-func GetDefaultConfiguration() *ServerConfiguration {
+import (
+	"os"
+	"encoding/json"
+)
+
+func LoadConfiguration(fileName string) (error, *ServerConfiguration) {
+	config := &ServerConfiguration{}
+	file, err := os.Open(fileName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			file, err = os.Create(fileName)
+			if err != nil {
+				return err, config
+			}
+			if err = json.NewEncoder(file).Encode(getDefaultConfiguration()); err != nil {
+				return err, config
+			}
+		} else {
+			return err, config
+		}
+	}
+	err = json.NewDecoder(file).Decode(config)
+	return err, config
+}
+
+func getDefaultConfiguration() *ServerConfiguration {
 	return &ServerConfiguration{
 		Address: "localhost:25565",
 		LoginAttempt: LoginAttemptValues{
