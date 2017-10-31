@@ -43,7 +43,8 @@ func LoadConfiguration(fileName string) (*ServerConfiguration, error) {
 
 func getDefaultConfiguration() *ServerConfiguration {
 	return &ServerConfiguration{
-		Address: "localhost:25565",
+		Address:           "localhost:25565",
+		ConnectionTimeout: 10000,
 		LoginAttempt: LoginAttemptValues{
 			DisconnectText: ChatValue{
 				Text:       "You are not ",

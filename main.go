@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/michivip/mcstatusserver/server"
 	"flag"
 	"github.com/michivip/mcstatusserver/configuration"
@@ -16,22 +15,22 @@ const asciiArt = "                           _             _                    
 	" | '_ ` _ \\   / __| / __| | __|  / _` | | __| | | | | / __| / __|  / _ \\ | '__| \\ \\ / /  / _ \\ | '__|\n" +
 	" | | | | | | | (__  \\__ \\ | |_  | (_| | | |_  | |_| | \\__ \\ \\__ \\ |  __/ | |     \\ V /  |  __/ | |   \n" +
 	" |_| |_| |_|  \\___| |___/  \\__|  \\__,_|  \\__|  \\__,_| |___/ |___/  \\___| |_|      \\_/    \\___| |_|   \n" +
-	"                                                                                                     "
+	"                                                                                                     \n"
 
 func main() {
 	configurationFile := flag.String("config", "config.json", "The path to your custom configuration file.")
 	flag.Parse()
 
-	fmt.Println(asciiArt)
+	os.Stdout.WriteString(asciiArt)
 	config, err := configuration.LoadConfiguration(*configurationFile)
 	if err != nil {
-		log.Printf("There was an error while loading the configuration: %v\n", err)
-		os.Exit(1)
+		log.Println("There was an error while loading the configuration: ")
+		panic(err)
 	}
 	encodedFavicon, err := loadFavicon(config)
 	if err != nil {
-		log.Printf("There was an error while loading the favicon: %v\n", err)
-		os.Exit(1)
+		log.Println("There was an error while loading the favicon: ")
+		panic(err)
 	}
 	config.Motd.FaviconPath = encodedFavicon
 	listener := server.StartServer(config)
