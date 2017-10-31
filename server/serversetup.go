@@ -2,7 +2,6 @@ package server
 
 import (
 	"net"
-	"os"
 	"github.com/michivip/mcstatusserver/datatypes"
 	"log"
 	"io"
@@ -10,19 +9,22 @@ import (
 	"encoding/json"
 	"strings"
 	"github.com/michivip/mcstatusserver/configuration"
+	"fmt"
 )
+
+var Closed = false
 
 func StartServer(config *configuration.ServerConfiguration) *net.TCPListener {
 	log.Printf("Starting server on %v\n", config.Address)
 	tcpAddress, err := net.ResolveTCPAddr("tcp4", config.Address)
 	if err != nil {
+		log.Fatalf("An error ocurred while resolving the bind address:")
 		panic(err)
-		os.Exit(1)
 	}
 	listener, err := net.ListenTCP("tcp4", tcpAddress)
 	if err != nil {
+		log.Fatalf("Could not listen to bind address %v:\n", config.Address)
 		panic(err)
-		os.Exit(1)
 	}
 	return listener
 }
@@ -31,35 +33,60 @@ func WaitForConnections(listener *net.TCPListener, config *configuration.ServerC
 	for {
 		conn, err := listener.AcceptTCP()
 		if err != nil {
-			panic(err)
+			if Closed {
+				return
+			} else {
+				panic(err)
+			}
 		}
 		go handleConnection(conn, config)
 	}
 }
 
 func handleConnection(conn *net.TCPConn, config *configuration.ServerConfiguration) {
+	log.Printf("[%v] --> Incoming connection.", conn.RemoteAddr())
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Printf("[%v] Recovered from handle packet method %T: %v", conn.RemoteAddr(), rec, rec)
+		}
+		conn.Close()
+		log.Printf("[%v] <-- Closed connection.", conn.RemoteAddr())
+	}()
 	// initial state is Handshaking (http://wiki.vg/Protocol#Definitions)
 	States[conn] = HandshakingState
 	// infinite loop of packet reading
 	for {
 		if packet, err, _ := datatypes.ReadPacket(conn); err != nil {
 			if err == io.EOF {
-				log.Printf("Closed connection to %v.", conn.RemoteAddr())
-				break
+				return
+			} else if err == io.ErrUnexpectedEOF {
+				log.Printf("[%v] Received invalid packet data.\n", conn.RemoteAddr())
+				return
 			} else {
+				log.Printf("[%v] Unknown error while reading packet:\n", conn.RemoteAddr())
 				panic(err)
 			}
 		} else {
-			log.Printf("Received packet with id %v from %v.", packet.Id, conn.RemoteAddr())
+			var packetHandleError ConnectionError
 			switch packet.Id {
 			case 0:
-				handleHandshakePacket(conn, packet, config)
+				packetHandleError = handleHandshakePacket(conn, packet, config)
 				break
 			case 1:
-				handlePingPacket(conn, packet)
+				packetHandleError = handlePingPacket(conn, packet)
 				break
 			default:
-				log.Printf("Received packet with unknown ID: %v\n", packet.Id)
+				log.Printf("[%v] Received packet with unknown ID: %v\n", conn.RemoteAddr(), packet.Id)
+				return
+			}
+			if packetHandleError != nil {
+				if packetHandleError.IsFatal() {
+					log.Printf("[%v] A fatal error ocurred while handling a packet with the id %v:\n", conn.RemoteAddr(), packet.Id)
+					panic(err)
+				} else {
+					log.Printf("[%v] Packet handle error ocurred: %T: %v\n", conn.RemoteAddr(), err, err.Error())
+					return
+				}
 			}
 		}
 	}
@@ -84,38 +111,63 @@ type StatusResponse struct {
 	Favicon string `json:"favicon,omitempty"`
 }
 
-func handleHandshakePacket(conn *net.TCPConn, packet datatypes.Packet, config *configuration.ServerConfiguration) {
+type ErrBasedConnectionError struct {
+	ThrownErr error
+	Fatal     bool
+}
+
+func (errBasedConnectionError ErrBasedConnectionError) Error() string {
+	return errBasedConnectionError.ThrownErr.Error()
+}
+
+func (errBasedConnectionError ErrBasedConnectionError) IsFatal() bool {
+	return errBasedConnectionError.Fatal
+}
+
+type ConnectionError interface {
+	error
+	IsFatal() bool
+}
+
+type ErrInvalidDataReceived struct {
+	DataName string
+}
+
+func (errInvalidDataReceived ErrInvalidDataReceived) Error() string {
+	return fmt.Sprintf("received invalid %v", errInvalidDataReceived.DataName)
+}
+
+func (errInvalidDataReceived ErrInvalidDataReceived) IsFatal() bool {
+	return false
+}
+
+func handleHandshakePacket(conn *net.TCPConn, packet datatypes.Packet, config *configuration.ServerConfiguration) ConnectionError {
 	currentState := States[conn]
 	switch currentState {
 	case HandshakingState:
 		version, err, _ := datatypes.ReadVarInt(packet.Content)
 		if err != nil {
-			log.Printf("Received invalid version data from %v: %v", conn.RemoteAddr(), err)
-			return
+			return ErrInvalidDataReceived{"protocol version"}
 		}
-		address, err, _ := datatypes.ReadString(packet.Content)
+		connectAddress, err, _ := datatypes.ReadString(packet.Content)
 		if err != nil {
-			log.Printf("Received invalid address data from %v: %v", conn.RemoteAddr(), err)
-			return
+			return ErrInvalidDataReceived{"server connect address"}
 		}
 		port, err := datatypes.ReadUnsignedShort(packet.Content)
 		if err != nil {
-			log.Printf("Received invalid port data from %v: %v", conn.RemoteAddr(), err)
-			return
+			return ErrInvalidDataReceived{"server port"}
 		}
 		nextRawState, err, _ := datatypes.ReadVarInt(packet.Content)
 		var nextState ConnectionState
 		if err != nil {
-			log.Printf("Received invalid next state data from %v: %v", conn.RemoteAddr(), err)
-			return
+			return ErrInvalidDataReceived{"next state"}
 		} else if nextState, err = GetConnectionStateFromInt(nextRawState); err != nil {
-			log.Printf("The sent next state from %v is invalid: %v", conn.RemoteAddr(), err)
-			return
+			return ErrBasedConnectionError{err, false}
 		} else {
 			States[conn] = nextState
 		}
-		log.Printf("Received handshake packet. [version=%v, address=%v, port=%v, nextRawState=%v]\n", version, address, port, nextRawState)
-		return
+		log.Printf("[%v] Received handshake packet. [version=%v, connectAddress=%v, port=%v, nextRawState=%v]\n", conn.RemoteAddr(), version, connectAddress, port, nextRawState)
+		return nil
 	case StatusState:
 		// no additional data is sent which can be read
 		data, err := json.Marshal(&StatusResponse{
@@ -125,55 +177,52 @@ func handleHandshakePacket(conn *net.TCPConn, packet datatypes.Packet, config *c
 			Favicon:     config.Motd.FaviconPath,
 		})
 		if err != nil {
-			panic(err)
+			return ErrBasedConnectionError{fmt.Errorf("could not serialize Handshake MOTD data: %v", err), true}
 		} else {
 			buffer := bytes.NewBuffer([]byte{})
 			if err, _ := datatypes.WriteString(buffer, string(data)); err != nil {
-				panic(err)
+				return ErrBasedConnectionError{err, false}
 			}
 			err, _ := datatypes.WritePacket(conn, datatypes.Packet{Content: buffer, Id: 0})
 			if err != nil {
-				panic(err)
+				return ErrBasedConnectionError{err, false}
 			}
 		}
-		return
+		return nil
 	case LoginState:
 		playerName, err, _ := datatypes.ReadString(packet.Content)
 		if err != nil {
-			log.Printf("Received invalid player name from %v: %v", conn.RemoteAddr(), err)
-			return
+			return ErrInvalidDataReceived{"player name"}
 		}
 		// maximum length of a player name is 16 ascii characters
 		if len(playerName) > 16 {
-			log.Printf("Received invalid player name from %v: %v", conn.RemoteAddr(), strings.Replace(playerName, "\\", "\\\\", -1))
-			return
+			return ErrInvalidDataReceived{fmt.Sprintf("player name length %v", strings.Replace(playerName, "\\", "\\\\", -1))}
 		}
 		data := bytes.NewBuffer([]byte{})
 		jsonBytes, err := json.Marshal(config.LoginAttempt.DisconnectText)
 		if err, _ = datatypes.WriteString(data, string(jsonBytes)); err != nil {
-			panic(err)
+			return ErrBasedConnectionError{err, false}
 		}
 		if err, _ = datatypes.WritePacket(conn, datatypes.Packet{Content: data, Id: 0}); err != nil {
-			panic(err)
+			return ErrBasedConnectionError{err, false}
 		}
-		return
+		return nil
 	default:
-		log.Printf("Cannot handle received Handshake packet with current state: %v", currentState)
-		return
+		return ErrBasedConnectionError{fmt.Errorf("can not handle Handshake packet with current state: %v", currentState), false}
 	}
 }
 
-func handlePingPacket(conn *net.TCPConn, packet datatypes.Packet) {
+func handlePingPacket(conn *net.TCPConn, packet datatypes.Packet) ConnectionError {
 	payload, err := datatypes.ReadLong(packet.Content)
 	if err != nil {
-		log.Printf("Received invalid ping payload data from %v: %v", conn.RemoteAddr(), err)
-		return
+		return ErrInvalidDataReceived{"ping payload"}
 	}
 	payloadBuffer := bytes.NewBuffer([]byte{})
 	if err = datatypes.WriteLong(payloadBuffer, payload); err != nil {
-		panic(err)
+		return ErrBasedConnectionError{err, false}
 	}
 	if err, _ = datatypes.WritePacket(conn, datatypes.Packet{Content: payloadBuffer, Id: 1}); err != nil {
-		panic(err)
+		return ErrBasedConnectionError{err, false}
 	}
+	return nil
 }

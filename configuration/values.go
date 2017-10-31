@@ -1,9 +1,11 @@
 package configuration
 
 type ServerConfiguration struct {
-	Address      string                `json:"address"`
-	Motd         MessageOfTheDayValues `json:"motd"`
-	LoginAttempt LoginAttemptValues    `json:"login_attempt"`
+	Address           string                `json:"address"`
+	ConnectionTimeout int                   `json:"connection_timeout"`
+	LogFile           string                `json:"log_file"`
+	Motd              MessageOfTheDayValues `json:"motd"`
+	LoginAttempt      LoginAttemptValues    `json:"login_attempt"`
 }
 
 // clickEvent or hoverEvent is not needed
