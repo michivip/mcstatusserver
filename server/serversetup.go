@@ -12,6 +12,8 @@ import (
 	"fmt"
 )
 
+var Closed = false
+
 func StartServer(config *configuration.ServerConfiguration) *net.TCPListener {
 	log.Printf("Starting server on %v\n", config.Address)
 	tcpAddress, err := net.ResolveTCPAddr("tcp4", config.Address)
@@ -31,7 +33,11 @@ func WaitForConnections(listener *net.TCPListener, config *configuration.ServerC
 	for {
 		conn, err := listener.AcceptTCP()
 		if err != nil {
-			panic(err)
+			if Closed {
+				return
+			} else {
+				panic(err)
+			}
 		}
 		go handleConnection(conn, config)
 	}

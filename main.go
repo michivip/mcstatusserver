@@ -8,6 +8,8 @@ import (
 	"os"
 	"io/ioutil"
 	"encoding/base64"
+	"io"
+	"bufio"
 )
 
 const asciiArt = "                           _             _                                                           \n" +
@@ -18,24 +20,81 @@ const asciiArt = "                           _             _                    
 	"                                                                                                     \n"
 
 func main() {
-	configurationFile := flag.String("config", "config.json", "The path to your custom configuration file.")
+	configurationFile := flag.String("config", "config.json", "The path to your custom configuration logFile.")
 	flag.Parse()
 
 	os.Stdout.WriteString(asciiArt)
 	config, err := configuration.LoadConfiguration(*configurationFile)
 	if err != nil {
-		log.Println("There was an error while loading the configuration: ")
+		log.Fatalln("There was an error while loading the configuration: ")
 		panic(err)
 	}
 	encodedFavicon, err := loadFavicon(config)
 	if err != nil {
-		log.Println("There was an error while loading the favicon: ")
+		log.Fatalln("There was an error while loading the favicon: ")
 		panic(err)
 	}
 	config.Motd.FaviconPath = encodedFavicon
+startLog:
+	logFile, err := os.OpenFile(config.LogFile, os.O_RDWR, os.ModePerm)
+	if os.IsNotExist(err) {
+		logFile, err = os.Create(config.LogFile)
+		if err != nil {
+			log.Fatalf("There was an error while creating the logging file (%v):\n", config.LogFile)
+			panic(err)
+		}
+	} else if err != nil {
+		log.Fatalf("There was an error while opening the logging file (%v):\n", config.LogFile)
+		panic(err)
+	} else {
+		logFile.Close()
+		if err = os.Remove(config.LogFile); err != nil {
+			log.Fatalf("There was an error while removing the old logging file (%v):\n", config.LogFile)
+			panic(err)
+		}
+		goto startLog
+	}
+	log.SetOutput(ConsoleFileWriter{logFile})
 	listener := server.StartServer(config)
-	defer listener.Close()
-	server.WaitForConnections(listener, config)
+	defer func() {
+		log.Println("Shutting down server...")
+		listener.Close()
+		log.Println("Closing log file...")
+		logFile.Close()
+	}()
+	go server.WaitForConnections(listener, config)
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		text, _ := reader.ReadString('\n')
+		if text == "stop\n" || text == "close\n" {
+			server.Closed = true
+			break
+		}
+	}
+}
+
+type SyncWriter interface {
+	io.Writer
+	Sync() error
+}
+
+type ConsoleFileWriter struct {
+	FileWriter SyncWriter
+}
+
+func (consoleFileWriter ConsoleFileWriter) Write(p []byte) (n int, err error) {
+	n, err = consoleFileWriter.FileWriter.Write(p)
+	if err != nil {
+		panic(err)
+		return
+	}
+	err = consoleFileWriter.FileWriter.Sync()
+	if err != nil {
+		panic(err)
+		return
+	}
+	n, err = os.Stdout.Write(p)
+	return
 }
 
 func loadFavicon(config *configuration.ServerConfiguration) (string, error) {

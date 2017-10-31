@@ -45,6 +45,7 @@ func getDefaultConfiguration() *ServerConfiguration {
 	return &ServerConfiguration{
 		Address:           "localhost:25565",
 		ConnectionTimeout: 10000,
+		LogFile:           "access.log",
 		LoginAttempt: LoginAttemptValues{
 			DisconnectText: ChatValue{
 				Text:       "You are not ",
