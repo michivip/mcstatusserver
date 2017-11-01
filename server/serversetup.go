@@ -36,6 +36,7 @@ func WaitForConnections(listener *net.TCPListener, config *configuration.ServerC
 			if Closed {
 				return
 			} else {
+				log.Fatalln("There was an error while accepting a TCP connection:")
 				panic(err)
 			}
 		}
