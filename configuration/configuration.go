@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-func LoadConfiguration(fileName string) (*ServerConfiguration, error) {
+func LoadConfiguration(fileName string) (*ServerConfiguration) {
 	config := &ServerConfiguration{}
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -14,31 +14,34 @@ func LoadConfiguration(fileName string) (*ServerConfiguration, error) {
 			log.Printf("Creating new configuration file: \"%v\"\n", fileName)
 			file, err = os.Create(fileName)
 			if err != nil {
-				return config, err
+				panic(err)
 			}
 			jsonEncoder := json.NewEncoder(file)
 			jsonEncoder.SetIndent("", "  ")
 			if err = jsonEncoder.Encode(getDefaultConfiguration()); err != nil {
-				return config, err
+				panic(err)
 			}
 			if err = file.Close(); err != nil {
-				return config, err
+				panic(err)
 			}
 			file, err = os.Open(fileName)
 			if err != nil {
-				return config, err
+				panic(err)
 			}
 			log.Println("New config file created! Please adjust your values and restart the application.")
 			os.Exit(0)
 		} else {
-			return config, err
+			panic(err)
 		}
 	}
 	err = json.NewDecoder(file).Decode(config)
-	if err = file.Close(); err != nil {
-		return config, err
+	if err != nil {
+		panic(err)
 	}
-	return config, err
+	if err = file.Close(); err != nil {
+		panic(err)
+	}
+	return config
 }
 
 func getDefaultConfiguration() *ServerConfiguration {

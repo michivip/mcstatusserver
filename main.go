@@ -24,16 +24,8 @@ func main() {
 	flag.Parse()
 
 	os.Stdout.WriteString(asciiArt)
-	config, err := configuration.LoadConfiguration(*configurationFile)
-	if err != nil {
-		log.Fatalln("There was an error while loading the configuration: ")
-		panic(err)
-	}
-	encodedFavicon, err := loadFavicon(config)
-	if err != nil {
-		log.Fatalln("There was an error while loading the favicon: ")
-		panic(err)
-	}
+	config := configuration.LoadConfiguration(*configurationFile)
+	encodedFavicon := loadFavicon(config)
 	config.Motd.FaviconPath = encodedFavicon
 startLog:
 	logFile, err := os.OpenFile(config.LogFile, os.O_RDWR, os.ModePerm)
@@ -97,22 +89,22 @@ func (consoleFileWriter ConsoleFileWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func loadFavicon(config *configuration.ServerConfiguration) (string, error) {
+func loadFavicon(config *configuration.ServerConfiguration) string {
 	faviconPath := config.Motd.FaviconPath
 	if faviconPath == "" {
-		return faviconPath, nil
+		return ""
 	}
 	faviconFile, err := os.Open(faviconPath)
 	if err != nil {
-		return faviconPath, err
+		panic(err)
 	}
 	faviconBytes, err := ioutil.ReadAll(faviconFile)
 	if err != nil {
-		return faviconPath, err
+		panic(err)
 	}
 	base64Favicon := base64.RawStdEncoding.EncodeToString(faviconBytes)
 	if err := faviconFile.Close(); err != nil {
-		return faviconPath, err
+		panic(err)
 	}
-	return "data:image/png;base64," + base64Favicon, nil
+	return "data:image/png;base64," + base64Favicon
 }
