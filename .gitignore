@@ -15,3 +15,7 @@
 
 # Gogland files
 .idea
+
+# mcstatusserver files
+config.json
+access.log
