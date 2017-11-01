@@ -10,6 +10,7 @@ import (
 	"strings"
 	"github.com/michivip/mcstatusserver/configuration"
 	"fmt"
+	"time"
 )
 
 var Closed = false
@@ -46,6 +47,15 @@ func WaitForConnections(listener *net.TCPListener, config *configuration.ServerC
 
 func handleConnection(conn *net.TCPConn, config *configuration.ServerConfiguration) {
 	log.Printf("[%v] --> Incoming connection.", conn.RemoteAddr())
+	var connectionOpen bool = true
+	go func() {
+		time.Sleep(time.Millisecond * time.Duration(config.ConnectionTimeout))
+		connectionOpen = false
+		err := conn.Close()
+		if err == nil {
+			log.Printf("[%v] Idle timeout exceeded.", conn.RemoteAddr())
+		}
+	}()
 	defer func() {
 		if rec := recover(); rec != nil {
 			log.Printf("[%v] Recovered from handle packet method %T: %v", conn.RemoteAddr(), rec, rec)
@@ -63,6 +73,8 @@ func handleConnection(conn *net.TCPConn, config *configuration.ServerConfigurati
 			} else if err == io.ErrUnexpectedEOF {
 				log.Printf("[%v] Received invalid packet data.\n", conn.RemoteAddr())
 				return
+			} else if !connectionOpen{
+				break
 			} else {
 				log.Printf("[%v] Unknown error while reading packet:\n", conn.RemoteAddr())
 				panic(err)
