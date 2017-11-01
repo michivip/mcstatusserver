@@ -2,10 +2,10 @@ package configuration
 
 type ServerConfiguration struct {
 	Address           string                `json:"address"`
-	ConnectionTimeout int                   `json:"connection_timeout"`
-	LogFile           string                `json:"log_file"`
+	ConnectionTimeout int                   `json:"connection-timeout"`
+	LogFile           string                `json:"log-file"`
 	Motd              MessageOfTheDayValues `json:"motd"`
-	LoginAttempt      LoginAttemptValues    `json:"login_attempt"`
+	LoginAttempt      LoginAttemptValues    `json:"login-attempt"`
 }
 
 // clickEvent or hoverEvent is not needed
