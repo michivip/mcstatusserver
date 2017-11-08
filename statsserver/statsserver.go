@@ -22,7 +22,7 @@ func SetupServer(config *configuration.ServerConfiguration) (*http.Server, error
 	statsSlice = make([]*StatsData, config.StatsHttpServer.StatisticsMapSize)
 	unixNano := time.Now().UnixNano()
 	for i := 0; i < config.StatsHttpServer.StatisticsMapSize; i++ {
-		unixNano -= int64(int(time.Hour) * i)
+		unixNano -= int64(int64(time.Hour))
 		statsSlice[config.StatsHttpServer.StatisticsMapSize-i-1] = &StatsData{time.Unix(0, unixNano).Format(HourDateFormat), 0, 0}
 	}
 	go func() {

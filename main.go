@@ -63,7 +63,7 @@ startLog:
 	errorChannel := make(chan error)
 	go func() {
 		err := statsServer.ListenAndServe()
-		if err != nil {
+		if err != nil && errorChannel != nil {
 			errorChannel <- err
 		}
 	}()
@@ -73,6 +73,7 @@ startLog:
 		panic(err)
 	case <-time.After(time.Millisecond * time.Duration(config.StatsHttpServer.ErrorTimeout)):
 		close(errorChannel)
+		errorChannel = nil
 		break
 	}
 	reader := bufio.NewReader(os.Stdin)
