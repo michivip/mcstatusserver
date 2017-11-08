@@ -2,10 +2,17 @@ package configuration
 
 type ServerConfiguration struct {
 	Address           string                `json:"address"`
+	StatsHttpServer   StatsHttpServer       `json:"stats-http-server"`
 	ConnectionTimeout int                   `json:"connection_timeout"`
 	LogFile           string                `json:"log_file"`
 	Motd              MessageOfTheDayValues `json:"motd"`
 	LoginAttempt      LoginAttemptValues    `json:"login_attempt"`
+}
+
+type StatsHttpServer struct {
+	Addr              string `json:"addr"`
+	StatisticsMapSize int    `json:"statistic-map-size"`
+	ErrorTimeout      int    `json:"error-timeout"`
 }
 
 // clickEvent or hoverEvent is not needed
