@@ -3,9 +3,11 @@ package server
 import (
 	"net"
 	"fmt"
+	"sync"
 )
 
 var States map[*net.TCPConn]ConnectionState = make(map[*net.TCPConn]ConnectionState)
+var StatesLock = sync.RWMutex{}
 
 type ConnectionState uint8
 

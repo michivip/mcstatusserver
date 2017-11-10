@@ -49,23 +49,35 @@ func WaitForConnections(listener *net.TCPListener, config *configuration.ServerC
 func handleConnection(conn *net.TCPConn, config *configuration.ServerConfiguration) {
 	log.Printf("[%v] --> Incoming connection.", conn.RemoteAddr())
 	var connectionOpen bool = true
+	closeChannel := make(chan bool)
 	go func() {
-		time.Sleep(time.Millisecond * time.Duration(config.ConnectionTimeout))
-		connectionOpen = false
-		err := conn.Close()
-		if err == nil {
-			log.Printf("[%v] Idle timeout exceeded.", conn.RemoteAddr())
+		select {
+		case <-closeChannel:
+			return
+		case <-time.After(time.Millisecond * time.Duration(config.ConnectionTimeout)):
+			connectionOpen = false
+			err := conn.Close()
+			if err == nil {
+				log.Printf("[%v] Idle timeout exceeded.", conn.RemoteAddr())
+			}
+			return
 		}
 	}()
 	defer func() {
 		if rec := recover(); rec != nil {
 			log.Printf("[%v] Recovered from handle packet method %T: %v", conn.RemoteAddr(), rec, rec)
 		}
+		StatesLock.Lock()
+		delete(States, conn)
+		StatesLock.Unlock()
 		conn.Close()
+		closeChannel <- false
 		log.Printf("[%v] <-- Closed connection.", conn.RemoteAddr())
 	}()
 	// initial state is Handshaking (http://wiki.vg/Protocol#Definitions)
+	StatesLock.Lock()
 	States[conn] = HandshakingState
+	StatesLock.Unlock()
 	// infinite loop of packet reading
 	for {
 		if packet, err, _ := datatypes.ReadPacket(conn); err != nil {
@@ -74,10 +86,10 @@ func handleConnection(conn *net.TCPConn, config *configuration.ServerConfigurati
 			} else if err == io.ErrUnexpectedEOF {
 				log.Printf("[%v] Received invalid packet data.\n", conn.RemoteAddr())
 				return
-			} else if !connectionOpen {
+			} else if _, ok := err.(*net.OpError); ok || !connectionOpen {
 				break
 			} else {
-				log.Printf("[%v] Unknown error while reading packet:\n", conn.RemoteAddr())
+				log.Printf("[%v] Unknown error while reading packet: %T: %v\n", conn.RemoteAddr(), err, err)
 				panic(err)
 			}
 		} else {
@@ -156,7 +168,9 @@ func (errInvalidDataReceived ErrInvalidDataReceived) IsFatal() bool {
 }
 
 func handleHandshakePacket(conn *net.TCPConn, packet datatypes.Packet, config *configuration.ServerConfiguration) ConnectionError {
+	StatesLock.RLock()
 	currentState := States[conn]
+	StatesLock.RUnlock()
 	switch currentState {
 	case HandshakingState:
 		version, err, _ := datatypes.ReadVarInt(packet.Content)
@@ -178,7 +192,9 @@ func handleHandshakePacket(conn *net.TCPConn, packet datatypes.Packet, config *c
 		} else if nextState, err = GetConnectionStateFromInt(nextRawState); err != nil {
 			return ErrBasedConnectionError{err, false}
 		} else {
+			StatesLock.Lock()
 			States[conn] = nextState
+			StatesLock.Unlock()
 		}
 		log.Printf("[%v] Received handshake packet. [version=%v, connectAddress=%v, port=%v, nextRawState=%v]\n", conn.RemoteAddr(), version, connectAddress, port, nextRawState)
 		return nil
