@@ -10,6 +10,8 @@ import (
 	"encoding/base64"
 	"io"
 	"bufio"
+	"github.com/michivip/mcstatusserver/statsserver"
+	"time"
 )
 
 const asciiArt = "                           _             _                                                           \n" +
@@ -48,13 +50,32 @@ startLog:
 	}
 	log.SetOutput(ConsoleFileWriter{logFile})
 	listener := server.StartServer(config)
+	statsServer, err := statsserver.SetupServer(config)
 	defer func() {
 		log.Println("Shutting down server...")
 		listener.Close()
+		log.Println("Shutting down stats http server...")
+		statsServer.Close()
 		log.Println("Closing log file...")
 		logFile.Close()
 	}()
 	go server.WaitForConnections(listener, config)
+	errorChannel := make(chan error)
+	go func() {
+		err := statsServer.ListenAndServe()
+		if err != nil && errorChannel != nil {
+			errorChannel <- err
+		}
+	}()
+	select {
+	case err := <-errorChannel:
+		log.Println("There was an error while running the stats server:")
+		panic(err)
+	case <-time.After(time.Millisecond * time.Duration(config.StatsHttpServer.ErrorTimeout)):
+		close(errorChannel)
+		errorChannel = nil
+		break
+	}
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		text, _ := reader.ReadString('\n')

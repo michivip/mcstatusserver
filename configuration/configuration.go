@@ -48,7 +48,13 @@ func getDefaultConfiguration() *ServerConfiguration {
 	return &ServerConfiguration{
 		Address:           "localhost:25565",
 		ConnectionTimeout: 10000,
-		LogFile:           "access.log",
+		StatsHttpServer: StatsHttpServer{
+			Addr:              "localhost:8080",
+			StatisticsMapSize: 5,
+			ErrorTimeout:      1000,
+			Timezone:          "CET",
+		},
+		LogFile: "access.log",
 		LoginAttempt: LoginAttemptValues{
 			DisconnectText: ChatValue{
 				Text:       "You are not ",

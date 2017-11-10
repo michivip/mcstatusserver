@@ -11,6 +11,7 @@ import (
 	"github.com/michivip/mcstatusserver/configuration"
 	"fmt"
 	"time"
+	"github.com/michivip/mcstatusserver/statsserver"
 )
 
 var Closed = false
@@ -73,7 +74,7 @@ func handleConnection(conn *net.TCPConn, config *configuration.ServerConfigurati
 			} else if err == io.ErrUnexpectedEOF {
 				log.Printf("[%v] Received invalid packet data.\n", conn.RemoteAddr())
 				return
-			} else if !connectionOpen{
+			} else if !connectionOpen {
 				break
 			} else {
 				log.Printf("[%v] Unknown error while reading packet:\n", conn.RemoteAddr())
@@ -200,6 +201,7 @@ func handleHandshakePacket(conn *net.TCPConn, packet datatypes.Packet, config *c
 			if err != nil {
 				return ErrBasedConnectionError{err, false}
 			}
+			statsserver.RegisterPing()
 		}
 		return nil
 	case LoginState:
@@ -219,6 +221,7 @@ func handleHandshakePacket(conn *net.TCPConn, packet datatypes.Packet, config *c
 		if err, _ = datatypes.WritePacket(conn, datatypes.Packet{Content: data, Id: 0}); err != nil {
 			return ErrBasedConnectionError{err, false}
 		}
+		statsserver.RegisterLogin()
 		return nil
 	default:
 		return ErrBasedConnectionError{fmt.Errorf("can not handle Handshake packet with current state: %v", currentState), false}

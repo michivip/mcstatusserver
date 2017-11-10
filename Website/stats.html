@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>mcstatusserver - Statistics</title>
+    <meta name="description" content="The statistic site for the Golang driven mcstatusserver.">
+    <!--Import Google Icon Font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--Import materialize.css-->
+    <link type="text/css" rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css"
+          media="screen,projection"/>
+
+    <!--Let browser know website is optimized for mobile-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">google.charts.load('current', {'packages': ['line']});
+    google.charts.setOnLoadCallback(function () {
+        $.ajax({
+            url: '/stats/packets', success: function (data) {
+                var rows = [data.length];
+                for (var i = 0; i < data.length; i++) {
+                    var dateSplit = data[i].hourDate.split("-");
+                    var hourData = [3];
+                    hourData[0] = new Date(Date.UTC(parseInt(dateSplit[0]), parseInt(dateSplit[1]) - 1, parseInt(dateSplit[2]), parseInt(dateSplit[3]), 0, 0, 0));
+                    hourData[1] = data[i].pingCount;
+                    hourData[2] = data[i].loginCount;
+                    rows[i] = hourData;
+                }
+                drawChart(rows);
+            }, error: function (jqXHR, exception) {
+                alert("There was an error while getting the current statistics. See console output for more details.");
+                var msg = '';
+                if (jqXHR.status === 0) {
+                    msg = 'Not connect. Verify Network.';
+                } else if (jqXHR.status === 404) {
+                    msg = 'Requested page not found. [404]';
+                } else if (jqXHR.status === 500) {
+                    msg = 'Internal Server Error [500].';
+                } else if (exception === 'parsererror') {
+                    msg = 'Requested JSON parse failed.';
+                } else if (exception === 'timeout') {
+                    msg = 'Time out error.';
+                } else if (exception === 'abort') {
+                    msg = 'Ajax request aborted.';
+                } else {
+                    msg = 'Uncaught Error.\n' + jqXHR.responseText;
+                }
+                console.log("There was an error while getting the current statistics: " + msg);
+            }
+        });
+    });
+
+    function drawChart(rows) {
+        var data = new google.visualization.DataTable();
+        data.addColumn('date', 'Hour');
+        data.addColumn('number', 'Server List Pings');
+        data.addColumn('number', 'Login attempts');
+        data.addRows(rows);
+        var options = {
+            hAxis: {format: 'HH:mm', viewWindowMode: 'pretty'},
+            chart: {title: 'An overview about the received packets in the last few hours.'}
+        };
+        var chart = new google.charts.Line(document.getElementById('server-list-pings-chart'));
+        chart.draw(data, google.charts.Line.convertOptions(options));
+    }
+    </script>
+</head>
+
+<body>
+<nav>
+    <div class="nav-wrapper" style="background-color: #2962ff;">
+        <a href="#" class="brand-logo center">mcstatusserver</a>
+        <ul id="nav-mobile" class="left hide-on-med-and-down">
+        </ul>
+    </div>
+</nav>
+<div class="container">
+    <div class="row">
+        <div class="col s12">
+            <h2 class="header">Statistics</h2>
+            <div class="card horizontal">
+                <div class="card-stacked">
+                    <div class="card-content">
+                        <div id="server-list-pings-chart" style="width: 100%; height: 500px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!--Import jQuery before materialize.js-->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+</body>
+</html>
