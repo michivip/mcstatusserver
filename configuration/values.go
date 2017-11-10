@@ -13,6 +13,7 @@ type StatsHttpServer struct {
 	Addr              string `json:"addr"`
 	StatisticsMapSize int    `json:"statistic-map-size"`
 	ErrorTimeout      int    `json:"error-timeout"`
+	Timezone          string `json:"timezone"`
 }
 
 // clickEvent or hoverEvent is not needed

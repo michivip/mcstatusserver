@@ -52,6 +52,7 @@ func getDefaultConfiguration() *ServerConfiguration {
 			Addr:              "localhost:8080",
 			StatisticsMapSize: 5,
 			ErrorTimeout:      1000,
+			Timezone:          "CET",
 		},
 		LogFile: "access.log",
 		LoginAttempt: LoginAttemptValues{
