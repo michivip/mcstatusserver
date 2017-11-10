@@ -15,78 +15,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script type="text/javascript">
-        google.charts.load('current', {'packages': ['line']});
-        google.charts.setOnLoadCallback(function () {
-            $.ajax({
-                url: '/stats/packets',
-                success: function (data) {
-                    rows = [data.pings.length[3]];
-                    for (var i = 0; i < data.pings.length; i++) {
-                        var dateSplit = data.pings[i].hourDate.split("-");
-                        rows[i][0] = new Date(parseInt(dateSplit[0]), parseInt(dateSplit[1]), parseInt(dateSplit[2]), parseInt(dateSplit[3]), 0, 0, 0);
-                        rows[i][1] = data.pings[i].count;
-                        rows[i][2] = data.logins[i].count;
-                    }
-                    drawChart(rows)
-                },
-                error: function (jqXHR, exception) {
-                    alert("There was an error while getting the current statistics. See console output for more details.");
-                    var msg = '';
-                    if (jqXHR.status === 0) {
-                        msg = 'Not connect. Verify Network.';
-                    } else if (jqXHR.status == 404) {
-                        msg = 'Requested page not found. [404]';
-                    } else if (jqXHR.status == 500) {
-                        msg = 'Internal Server Error [500].';
-                    } else if (exception === 'parsererror') {
-                        msg = 'Requested JSON parse failed.';
-                    } else if (exception === 'timeout') {
-                        msg = 'Time out error.';
-                    } else if (exception === 'abort') {
-                        msg = 'Ajax request aborted.';
-                    } else {
-                        msg = 'Uncaught Error.\n' + jqXHR.responseText;
-                    }
-                    console.log("There was an error while getting the current statistics: " + msg);
+    <script type="text/javascript">google.charts.load('current', {'packages': ['line']});
+    google.charts.setOnLoadCallback(function () {
+        $.ajax({
+            url: '/stats/packets', success: function (data) {
+                var rows = [data.length];
+                for (var i = 0; i < data.length; i++) {
+                    var dateSplit = data[i].hourDate.split("-");
+                    var hourData = [3];
+                    hourData[0] = new Date(Date.UTC(parseInt(dateSplit[0]), parseInt(dateSplit[1]) - 1, parseInt(dateSplit[2]), parseInt(dateSplit[3]), 0, 0, 0));
+                    hourData[1] = data[i].pingCount;
+                    hourData[2] = data[i].loginCount;
+                    rows[i] = hourData;
                 }
-            });
+                drawChart(rows);
+            }, error: function (jqXHR, exception) {
+                alert("There was an error while getting the current statistics. See console output for more details.");
+                var msg = '';
+                if (jqXHR.status === 0) {
+                    msg = 'Not connect. Verify Network.';
+                } else if (jqXHR.status === 404) {
+                    msg = 'Requested page not found. [404]';
+                } else if (jqXHR.status === 500) {
+                    msg = 'Internal Server Error [500].';
+                } else if (exception === 'parsererror') {
+                    msg = 'Requested JSON parse failed.';
+                } else if (exception === 'timeout') {
+                    msg = 'Time out error.';
+                } else if (exception === 'abort') {
+                    msg = 'Ajax request aborted.';
+                } else {
+                    msg = 'Uncaught Error.\n' + jqXHR.responseText;
+                }
+                console.log("There was an error while getting the current statistics: " + msg);
+            }
         });
+    });
 
-        function drawChart(rows) {
-            var data = new google.visualization.DataTable();
-            data.addColumn('date', 'Hour');
-            data.addColumn('number', 'Server List Pings');
-            data.addColumn('number', 'Login attempts');
-
-            data.addRows(rows);
-            /*data.addRows([
-                [1, 10, 0],
-                [2, 11, 2],
-                [3, 14, 1],
-                [4, 10, 3],
-                [5, 5, 0],
-                [6, 10, 4],
-                [7, 15, 9],
-                [8, 12, 4],
-                [9, 16, 1],
-                [10, 12, 0],
-                [11, 5, 3],
-                [12, 6, 2],
-                [13, 4, 6],
-                [14, 4, 5]
-            ]);*/
-
-            var options = {
-                chart: {
-                    title: 'An overview about the received packets in the last few hours.'
-                }
-            };
-
-            var chart = new google.charts.Line(document.getElementById('server-list-pings-chart'));
-
-            chart.draw(data, google.charts.Line.convertOptions(options));
-        }
+    function drawChart(rows) {
+        var data = new google.visualization.DataTable();
+        data.addColumn('date', 'Hour');
+        data.addColumn('number', 'Server List Pings');
+        data.addColumn('number', 'Login attempts');
+        data.addRows(rows);
+        var options = {
+            hAxis: {format: 'HH:mm', viewWindowMode: 'pretty'},
+            chart: {title: 'An overview about the received packets in the last few hours.'}
+        };
+        var chart = new google.charts.Line(document.getElementById('server-list-pings-chart'));
+        chart.draw(data, google.charts.Line.convertOptions(options));
+    }
     </script>
 </head>
 

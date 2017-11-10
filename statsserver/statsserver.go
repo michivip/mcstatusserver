@@ -27,7 +27,7 @@ func SetupServer(config *configuration.ServerConfiguration) (*http.Server, error
 		return &http.Server{}, err
 	}
 	statsSlice = make([]*StatsData, config.StatsHttpServer.StatisticsMapSize)
-	unixNano := time.Now().UnixNano()
+	unixNano := time.Now().Add(time.Hour).UnixNano()
 	for i := 0; i < config.StatsHttpServer.StatisticsMapSize; i++ {
 		unixNano -= int64(int64(time.Hour))
 		statsSlice[config.StatsHttpServer.StatisticsMapSize-i-1] = &StatsData{time.Unix(0, unixNano).In(timezone).Format(HourDateFormat), 0, 0}
@@ -84,7 +84,7 @@ func RegisterLogin() {
 
 func registerCount(pingAmount, loginAmount int) {
 	// Year-Month-Day-Hour
-	hourDate := time.Now().In(timezone).Format(HourDateFormat)
+	hourDate := time.Now().In(timezone).Add(time.Hour).Format(HourDateFormat)
 	if len(statsSlice) > 0 {
 		data := statsSlice[len(statsSlice)-1]
 		if data.HourDate == hourDate {
